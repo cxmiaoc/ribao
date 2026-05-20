@@ -1,0 +1,28 @@
+{
+  "name": "hospital-ops-report",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server/server.js",
+    "serve": "node tools/serve.mjs",
+    "prepare:www": "node tools/prepare-www.mjs",
+    "cap:init": "npm install @capacitor/core @capacitor/cli @capacitor/android",
+    "cap:add-android": "npx cap add android",
+    "cap:sync": "npm run prepare:www && npx cap sync android",
+    "cap:open": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "mysql2": "^3.15.3",
+    "ssh2": "^1.17.0"
+  }
+}

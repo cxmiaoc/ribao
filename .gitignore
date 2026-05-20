@@ -1,0 +1,16 @@
+node_modules/
+.build-tools/
+www/
+downloads/*.apk
+*.apk
+*.tar.gz
+
+android/.gradle/
+android/app/build/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+android/capacitor.settings.gradle
+
+.env
+*.log
+*.tmp

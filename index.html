@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#eef7f4" />
+    <title>医院运维日报</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="login-overlay" id="loginOverlay" hidden>
+      <div class="login-card" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+        <p class="eyebrow">Login</p>
+        <h2 id="loginTitle">登录日报系统</h2>
+        <p class="login-tip">请输入账号和密码后继续使用。</p>
+        <form id="loginForm" autocomplete="off">
+          <label>
+            登录账号
+            <input type="text" id="loginUsername" placeholder="请输入账号" required />
+          </label>
+          <label>
+            登录密码
+            <input type="password" id="loginPassword" placeholder="请输入密码" required />
+          </label>
+          <p class="login-error" id="loginError"></p>
+          <button type="submit" class="primary-button">登录</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="login-overlay" id="adminOverlay" hidden>
+      <div class="login-card admin-card" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+        <div class="panel-title compact">
+          <div>
+            <p class="eyebrow">Admin</p>
+            <h2 id="adminTitle">用户管理</h2>
+          </div>
+          <button type="button" class="secondary-button small-button" id="adminCloseBtn">关闭</button>
+        </div>
+
+        <form id="adminLoginForm" autocomplete="off">
+          <label>
+            管理员账号
+            <input type="text" id="adminUsername" placeholder="管理员账号" required />
+          </label>
+          <label>
+            管理员密码
+            <input type="password" id="adminPassword" placeholder="管理员密码" required />
+          </label>
+          <p class="login-error" id="adminLoginError"></p>
+          <button type="submit" class="primary-button">进入管理</button>
+        </form>
+
+        <div id="adminPanel" hidden>
+          <form id="addUserForm" autocomplete="off">
+            <label>
+              新账号
+              <input type="text" id="newUsername" placeholder="例如：zhangsan" required />
+            </label>
+            <label>
+              新密码
+              <input type="password" id="newPassword" placeholder="至少 4 位" required />
+            </label>
+            <p class="login-error" id="addUserError"></p>
+            <button type="submit" class="primary-button">添加登录用户</button>
+          </form>
+          <div class="user-list" id="userList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Hospital IT Ops</p>
+          <h1 id="appTitle">医院运维日报</h1>
+        </div>
+        <button class="icon-button" id="newRecordBtn" title="新增记录" aria-label="新增记录">+</button>
+      </header>
+
+      <main class="workspace">
+        <section class="summary" aria-label="记录统计">
+          <div class="summary-card">
+            <span id="selectedCount">0</span>
+            <p>查询日期记录</p>
+          </div>
+          <div class="summary-card">
+            <span id="todayCount">0</span>
+            <p>今日记录</p>
+          </div>
+          <div class="summary-card">
+            <span id="totalCount">0</span>
+            <p>全部记录</p>
+          </div>
+        </section>
+
+        <section class="edit-panel" aria-label="新增或编辑运维记录">
+          <div class="panel-title">
+            <div>
+              <p class="eyebrow">Record</p>
+              <h2 id="formTitle">新增记录</h2>
+            </div>
+            <span class="save-pill" id="saveState">服务器保存</span>
+          </div>
+
+          <form id="recordForm" autocomplete="off">
+            <label>
+              记录日期
+              <input type="date" id="recordDate" required />
+            </label>
+
+            <label>
+              记录一：地点
+              <input
+                type="text"
+                id="locationText"
+                placeholder="例如：门诊二楼 检验科 3号位"
+                maxlength="80"
+                required
+              />
+            </label>
+
+            <label>
+              记录二：发生的故障
+              <textarea id="faultText" rows="4" placeholder="简单描述故障现象" required></textarea>
+            </label>
+
+            <label>
+              记录三：如何解决
+              <textarea id="solutionText" rows="4" placeholder="记录处理步骤或最终解决方法" required></textarea>
+            </label>
+
+            <div class="action-row">
+              <button type="submit" class="primary-button" id="saveBtn">保存记录</button>
+              <button type="button" class="secondary-button" id="clearBtn">清空</button>
+              <button type="button" class="danger-button" id="deleteBtn" hidden>删除</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="list-panel" aria-label="按日期查询记录">
+          <div class="panel-title compact">
+            <div>
+              <p class="eyebrow">Query</p>
+              <h2>按日期查询</h2>
+            </div>
+          </div>
+
+          <div class="query-box">
+            <label>
+              查询日期
+              <input type="date" id="queryDate" />
+            </label>
+            <button type="button" class="secondary-button" id="todayBtn">今天</button>
+          </div>
+
+          <div class="toolbar">
+            <button type="button" class="secondary-button" id="copyDayBtn">复制当天记录</button>
+            <button type="button" class="secondary-button" id="checkUpdateBtn">检查更新</button>
+          </div>
+
+          <div class="day-title">
+            <span id="dayTitle">今天</span>
+            <strong id="dayCount">0 条</strong>
+          </div>
+
+          <div class="record-list" id="recordList"></div>
+          <p class="empty-state" id="emptyState">这个日期还没有记录。</p>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>

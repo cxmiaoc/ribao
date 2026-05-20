@@ -1,0 +1,10 @@
+{
+  "appId": "com.local.ribao",
+  "appName": "医院运维日报",
+  "webDir": "www",
+  "server": {
+    "url": "https://xxx",
+    "cleartext": false,
+    "androidScheme": "https"
+  }
+}

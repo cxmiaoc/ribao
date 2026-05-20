@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">医院运维日报</string>
+    <string name="title_activity_main">医院运维日报</string>
+    <string name="package_name">com.local.ribao</string>
+    <string name="custom_url_scheme">com.local.ribao</string>
+</resources>

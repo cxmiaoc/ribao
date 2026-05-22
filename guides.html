@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#eef7f4" />
+    <title>故障处理库</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="login-overlay" id="loginOverlay" hidden>
+      <div class="login-card" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+        <p class="eyebrow">Login</p>
+        <h2 id="loginTitle">登录故障处理库</h2>
+        <p class="login-tip">请输入日报系统账号和密码后继续使用。</p>
+        <form id="loginForm" autocomplete="off">
+          <label>
+            登录账号
+            <input type="text" id="loginUsername" placeholder="请输入账号" required />
+          </label>
+          <label>
+            登录密码
+            <input type="password" id="loginPassword" placeholder="请输入密码" required />
+          </label>
+          <p class="login-error" id="loginError"></p>
+          <button type="submit" class="primary-button">登录</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="app-shell blog-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Fault Knowledge</p>
+          <h1>故障处理库</h1>
+        </div>
+        <div class="top-actions">
+          <a class="secondary-button top-link" href="./index.html">返回日报</a>
+          <button class="icon-button" id="newGuideBtn" title="发布处理方法" aria-label="发布处理方法">+</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="blog-search-panel" aria-label="全文搜索故障处理方法">
+          <form class="blog-search" id="guideSearchForm" autocomplete="off">
+            <input type="search" id="guideSearchText" placeholder="全文搜索：报错内容、故障现象、处理步骤" />
+            <button type="submit" class="primary-button">搜索</button>
+            <button type="button" class="secondary-button" id="clearGuideSearchBtn">全部</button>
+          </form>
+          <div class="blog-meta">
+            <span id="guideListTitle">全部处理方法</span>
+            <strong id="guideCount">0 篇</strong>
+          </div>
+        </section>
+
+        <section class="blog-list-view" id="listView" aria-label="故障处理方法列表">
+          <div class="blog-list" id="guideList"></div>
+          <p class="empty-state" id="guideEmptyState">还没有发布处理方法。</p>
+        </section>
+
+        <section class="blog-detail-view" id="detailView" hidden aria-label="故障处理方法详情">
+          <div class="detail-toolbar">
+            <button type="button" class="secondary-button" id="backToListBtn">返回列表</button>
+            <div class="action-row">
+              <button type="button" class="secondary-button" id="editGuideBtn">编辑</button>
+              <button type="button" class="danger-button" id="deleteGuideBtn">删除</button>
+            </div>
+          </div>
+          <article class="guide-article" id="guideArticle"></article>
+        </section>
+
+        <section class="blog-editor-view" id="editorView" hidden aria-label="发布或编辑故障处理方法">
+          <div class="detail-toolbar">
+            <button type="button" class="secondary-button" id="cancelEditBtn">返回列表</button>
+            <span class="save-pill" id="guideState">草稿</span>
+          </div>
+
+          <div class="editor-panel">
+            <h2 id="guideFormTitle">发布文章</h2>
+            <form id="guideForm" autocomplete="off">
+              <label>
+                标题
+                <input
+                  type="text"
+                  id="guideKeyword"
+                  placeholder="例如：医保接口超时怎么处理"
+                  maxlength="120"
+                  required
+                />
+              </label>
+
+              <div class="rich-editor-field">
+                <div class="editor-label">文章内容</div>
+                <div class="rich-toolbar" aria-label="文章编辑工具">
+                  <button type="button" class="secondary-button small-button" data-command="h2">标题</button>
+                  <button type="button" class="secondary-button small-button" data-command="bold">加粗</button>
+                  <button type="button" class="secondary-button small-button" data-command="ul">列表</button>
+                  <button type="button" class="secondary-button small-button" data-command="ol">编号</button>
+                  <button type="button" class="secondary-button small-button" id="insertImageBtn">图片</button>
+                  <input type="file" id="guideImageInput" accept="image/*" multiple hidden />
+                </div>
+                <div
+                  class="rich-editor"
+                  id="guideEditor"
+                  contenteditable="true"
+                  role="textbox"
+                  aria-multiline="true"
+                  data-placeholder="像写博客一样记录：故障现象、报错内容、原因判断、处理过程、处理结果、注意事项"
+                ></div>
+              </div>
+
+              <div class="action-row">
+                <button type="submit" class="primary-button" id="saveGuideBtn">发布</button>
+                <button type="button" class="secondary-button" id="clearGuideBtn">清空</button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./guide.js" type="module"></script>
+  </body>
+</html>

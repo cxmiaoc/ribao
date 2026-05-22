@@ -8,7 +8,7 @@ const outDir = join(root, "www");
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 
-["index.html", "styles.css", "app.js", "manifest.webmanifest", "sw.js"].forEach((file) => {
+["index.html", "guides.html", "styles.css", "app.js", "guide.js", "manifest.webmanifest", "sw.js"].forEach((file) => {
   cpSync(join(root, file), join(outDir, file));
 });
 

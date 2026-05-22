@@ -36,7 +36,7 @@ app.disable("x-powered-by");
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(compression());
 app.use(cors());
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "80mb" }));
 
 app.use(express.static(publicDir, {
   etag: false,
@@ -164,6 +164,85 @@ app.get("/api/app-version", (request, response) => {
   });
 });
 
+app.use("/api/guides", requireUser);
+
+app.get("/api/guides", async (request, response, next) => {
+  try {
+    const search = String(request.query.search || "").trim();
+    const like = `%${search}%`;
+    const [rows] = await pool.execute(
+      `SELECT id, keyword, fault, steps, images,
+              created_at AS createdAt, updated_at AS updatedAt
+         FROM ops_fault_guides
+        WHERE user_id = ?
+          AND (? = '' OR keyword LIKE ? OR fault LIKE ? OR steps LIKE ?)
+        ORDER BY updated_at DESC, created_at DESC
+        LIMIT 100`,
+      [request.user.sub, search, like, like, like],
+    );
+    response.json({ guides: rows.map(toGuide) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/guides", async (request, response, next) => {
+  try {
+    const guide = validateGuide(request.body);
+    const id = randomUUID();
+    await pool.execute(
+      `INSERT INTO ops_fault_guides (id, user_id, keyword, fault, steps, images)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, request.user.sub, guide.keyword, guide.fault, guide.steps, JSON.stringify(guide.images)],
+    );
+    response.status(201).json(await findGuide(id, request.user.sub));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/api/guides/:id", async (request, response, next) => {
+  try {
+    const guide = validateGuide(request.body);
+    const [result] = await pool.execute(
+      `UPDATE ops_fault_guides
+          SET keyword = ?, fault = ?, steps = ?, images = ?
+        WHERE id = ? AND user_id = ?`,
+      [
+        guide.keyword,
+        guide.fault,
+        guide.steps,
+        JSON.stringify(guide.images),
+        request.params.id,
+        request.user.sub,
+      ],
+    );
+    if (result.affectedRows === 0) {
+      response.status(404).json({ error: "处理方法不存在" });
+      return;
+    }
+    response.json(await findGuide(request.params.id, request.user.sub));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/api/guides/:id", async (request, response, next) => {
+  try {
+    const [result] = await pool.execute(
+      "DELETE FROM ops_fault_guides WHERE id = ? AND user_id = ?",
+      [request.params.id, request.user.sub],
+    );
+    if (result.affectedRows === 0) {
+      response.status(404).json({ error: "处理方法不存在" });
+      return;
+    }
+    response.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use("/api/records", requireUser);
 
 app.get("/api/records", async (request, response, next) => {
@@ -270,9 +349,29 @@ app.use((error, _request, response, _next) => {
   response.status(status).json({ error: status === 500 ? "服务器错误" : error.message });
 });
 
+await ensureDatabase();
+
 app.listen(port, () => {
   console.log(`医院运维日报服务已启动：http://127.0.0.1:${port}`);
 });
+
+async function ensureDatabase() {
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS ops_fault_guides (
+      id CHAR(36) NOT NULL PRIMARY KEY,
+      user_id CHAR(36) NOT NULL,
+      keyword VARCHAR(255) NOT NULL,
+      fault TEXT NOT NULL,
+      steps MEDIUMTEXT NOT NULL,
+      images LONGTEXT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_user_updated (user_id, updated_at),
+      INDEX idx_user_keyword (user_id, keyword)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+  await pool.execute("ALTER TABLE ops_fault_guides MODIFY images LONGTEXT NULL").catch(() => {});
+}
 
 async function findRecord(id, userId) {
   const [rows] = await pool.execute(
@@ -283,6 +382,17 @@ async function findRecord(id, userId) {
     [id, userId],
   );
   return rows[0] ? toRecord(rows[0]) : null;
+}
+
+async function findGuide(id, userId) {
+  const [rows] = await pool.execute(
+    `SELECT id, keyword, fault, steps, images,
+            created_at AS createdAt, updated_at AS updatedAt
+       FROM ops_fault_guides
+      WHERE id = ? AND user_id = ?`,
+    [id, userId],
+  );
+  return rows[0] ? toGuide(rows[0]) : null;
 }
 
 async function findUserByUsername(username) {
@@ -304,6 +414,14 @@ function validateRecord(input) {
   return { date, location, fault, solution };
 }
 
+function validateGuide(input) {
+  const keyword = normalizeText(input?.keyword, "报错关键字", 120);
+  const fault = normalizeOptionalText(input?.fault, 4000);
+  const steps = normalizeText(input?.steps, "文章内容", 100000);
+  const images = normalizeImages(input?.images);
+  return { keyword, fault, steps, images };
+}
+
 function normalizeDate(value) {
   const text = String(value || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
@@ -320,19 +438,51 @@ function normalizeOptionalDate(value) {
   return normalizeDate(text);
 }
 
-function normalizeText(value, fieldName) {
+function normalizeText(value, fieldName, maxLength = 1000) {
   const text = String(value || "").trim();
   if (!text) {
     const error = new Error(`${fieldName}不能为空`);
     error.status = 400;
     throw error;
   }
-  if (text.length > 1000) {
+  if (text.length > maxLength) {
     const error = new Error(`${fieldName}太长`);
     error.status = 400;
     throw error;
   }
   return text;
+}
+
+function normalizeOptionalText(value, maxLength = 1000) {
+  const text = String(value || "").trim();
+  if (text.length > maxLength) {
+    const error = new Error("内容太长");
+    error.status = 400;
+    throw error;
+  }
+  return text;
+}
+
+function normalizeImages(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const id = String(item?.id || randomUUID()).slice(0, 80);
+    const name = String(item?.name || "处理图片").slice(0, 120);
+    const type = String(item?.type || "image/jpeg").slice(0, 40);
+    const stage = item?.stage === "fault" ? "fault" : "process";
+    const data = String(item?.data || "");
+    if (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(data)) {
+      const error = new Error("图片格式不正确");
+      error.status = 400;
+      throw error;
+    }
+    if (data.length > 1500 * 1024) {
+      const error = new Error("单张图片太大，请重新选择较小图片");
+      error.status = 400;
+      throw error;
+    }
+    return { id, name, type, stage, data };
+  });
 }
 
 function normalizeUsername(value) {
@@ -365,6 +515,28 @@ function toRecord(row) {
     createdAt: new Date(row.createdAt).toISOString(),
     updatedAt: new Date(row.updatedAt).toISOString(),
   };
+}
+
+function toGuide(row) {
+  return {
+    id: row.id,
+    keyword: row.keyword,
+    fault: row.fault,
+    steps: row.steps,
+    images: parseImages(row.images),
+    createdAt: new Date(row.createdAt).toISOString(),
+    updatedAt: new Date(row.updatedAt).toISOString(),
+  };
+}
+
+function parseImages(value) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function toUser(row) {

@@ -1,4 +1,4 @@
-const API_BASE = window.RIBAO_API_BASE || "";
+const API_BASE = window.RIBAO_API_BASE || (window.location.port === "4173" ? "http://localhost:3000" : "");
 const TOKEN_KEY = "hospital.ops.authToken.v1";
 
 let records = [];
@@ -291,6 +291,10 @@ async function apiRequest(path, options = {}) {
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error("接口没有返回数据，请确认后端 http://localhost:3000 已启动");
+  }
   const data = await response.json().catch(() => ({}));
   if (response.status === 401) {
     authToken = "";

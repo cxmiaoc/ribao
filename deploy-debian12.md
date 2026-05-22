@@ -33,15 +33,17 @@ cp .env.example .env
 nano .env
 ```
 
-把 `.env` 里的 `DB_PASSWORD` 改成真实 MySQL 密码。
+把 `.env` 里的数据库配置、应用密钥和 Android 更新地址改成真实配置。不要把 `.env` 提交到 Git。
 
 ## 4. 初始化 MySQL
 
-先编辑 `server/schema.sql`，把 `请改成强密码` 改成和 `.env` 一样的密码。
+先编辑 `server/schema.sql`，把示例数据库密码改成和 `.env` 一致的密码。
 
 ```bash
 mysql -uroot -p < server/schema.sql
 ```
+
+Schema 中包含日报记录、登录用户和故障处理库文章表。后续代码更新时，服务启动也会补齐故障处理库需要的表结构。
 
 ## 5. 启动后端
 
@@ -71,6 +73,7 @@ nano /etc/nginx/sites-available/ribao
 server {
     listen 80;
     server_name xxx;
+    client_max_body_size 100m;
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -82,6 +85,8 @@ server {
     }
 }
 ```
+
+`client_max_body_size` 用于支持故障处理库里的图文文章上传。
 
 启用：
 
@@ -126,6 +131,6 @@ nano /var/www/ribao/.env
 pm2 restart hospital-ops-report
 ```
 
-把 `.env` 里的 `LATEST_ANDROID_VERSION` 改成比旧版本更高，比如 `2.1.0`。手机端会自动检查，也可以点页面里的“检查更新”按钮。
+把 `.env` 里的 `LATEST_ANDROID_VERSION` 改成比旧版本更高的版本号。手机端会自动检查，也可以点击页面里的“检查更新”按钮。
 
-注意：普通 Android 手机不能静默安装 APK，用户仍然需要点确认安装。这是 Android 系统限制。
+普通 Android 手机不能静默安装 APK，用户仍然需要确认安装，这是 Android 系统限制。

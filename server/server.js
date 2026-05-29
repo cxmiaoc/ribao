@@ -247,6 +247,20 @@ app.use("/api/records", requireUser);
 
 app.get("/api/records", async (request, response, next) => {
   try {
+    const scope = String(request.query.scope || "").trim();
+    if (scope === "all") {
+      const [rows] = await pool.execute(
+        `SELECT id, record_date AS date, location, fault, solution,
+                created_at AS createdAt, updated_at AS updatedAt
+           FROM ops_records
+          WHERE user_id = ?
+          ORDER BY record_date ASC, created_at ASC, id ASC`,
+        [request.user.sub],
+      );
+      response.json({ records: rows.map(toRecord) });
+      return;
+    }
+
     const date = normalizeOptionalDate(request.query.date) || today();
     const [rows] = await pool.execute(
       `SELECT id, record_date AS date, location, fault, solution,

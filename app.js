@@ -254,78 +254,14 @@ function copyWithFallback(text) {
 }
 
 async function exportAllRecordsToExcel() {
-  try {
-    const data = await apiRequest("/api/records?scope=all");
-    const allRecords = [...(data.records || [])].sort((a, b) => {
-      const left = `${a.date || ""} ${a.createdAt || ""}`;
-      const right = `${b.date || ""} ${b.createdAt || ""}`;
-      return left.localeCompare(right, "zh-CN");
-    });
-
-    if (allRecords.length === 0) {
-      window.alert("还没有日报记录，暂时没有内容可以导出。");
-      return;
-    }
-
-    const filename = `医院运维日报-${today()}.xls`;
-    const table = buildExcelTable(allRecords);
-    downloadExcelFile(filename, table);
-    pulseSaveState("已导出");
-  } catch (error) {
-    window.alert(`导出失败：${error.message}`);
+  if (!authToken) {
+    const loggedIn = await promptLogin();
+    if (!loggedIn) return;
   }
-}
 
-function buildExcelTable(allRecords) {
-  const rows = allRecords.map((record, index) => `
-    <tr>
-      <td>${index + 1}</td>
-      <td>${escapeHtml(formatDate(record.date))}</td>
-      <td>${escapeHtml(record.location)}</td>
-      <td>${escapeHtml(record.fault)}</td>
-      <td>${escapeHtml(record.solution)}</td>
-      <td>${escapeHtml(formatTime(record.createdAt))}</td>
-    </tr>
-  `).join("");
-
-  return `<!doctype html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <style>
-      table { border-collapse: collapse; width: 100%; }
-      th, td { border: 1px solid #9fb8b2; padding: 8px; text-align: left; vertical-align: top; }
-      th { background: #dff0ec; font-weight: 700; }
-    </style>
-  </head>
-  <body>
-    <table>
-      <thead>
-        <tr>
-          <th>序号</th>
-          <th>日期</th>
-          <th>地点</th>
-          <th>发生的故障</th>
-          <th>如何解决</th>
-          <th>记录时间</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </body>
-</html>`;
-}
-
-function downloadExcelFile(filename, html) {
-  const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  pulseSaveState("正在导出");
+  const url = `${API_BASE}/api/records/export.xls?token=${encodeURIComponent(authToken)}&t=${Date.now()}`;
+  window.location.href = url;
 }
 
 async function checkAppUpdate(manual = false) {

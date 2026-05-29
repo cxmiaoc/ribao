@@ -243,20 +243,28 @@ app.delete("/api/guides/:id", async (request, response, next) => {
   }
 });
 
+app.get("/api/records/export.xls", requireExportUser, async (request, response, next) => {
+  try {
+    const rows = await findAllRecords(request.user.sub);
+    const filename = `医院运维日报-${today()}.xls`;
+    response.setHeader("Content-Type", "application/vnd.ms-excel; charset=utf-8");
+    response.setHeader(
+      "Content-Disposition",
+      `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    );
+    response.send(`\ufeff${buildRecordsExcel(rows)}`);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use("/api/records", requireUser);
 
 app.get("/api/records", async (request, response, next) => {
   try {
     const scope = String(request.query.scope || "").trim();
     if (scope === "all") {
-      const [rows] = await pool.execute(
-        `SELECT id, record_date AS date, location, fault, solution,
-                created_at AS createdAt, updated_at AS updatedAt
-           FROM ops_records
-          WHERE user_id = ?
-          ORDER BY record_date ASC, created_at ASC, id ASC`,
-        [request.user.sub],
-      );
+      const rows = await findAllRecords(request.user.sub);
       response.json({ records: rows.map(toRecord) });
       return;
     }
@@ -398,6 +406,18 @@ async function findRecord(id, userId) {
   return rows[0] ? toRecord(rows[0]) : null;
 }
 
+async function findAllRecords(userId) {
+  const [rows] = await pool.execute(
+    `SELECT id, record_date AS date, location, fault, solution,
+            created_at AS createdAt, updated_at AS updatedAt
+       FROM ops_records
+      WHERE user_id = ?
+      ORDER BY record_date ASC, created_at ASC, id ASC`,
+    [userId],
+  );
+  return rows;
+}
+
 async function findGuide(id, userId) {
   const [rows] = await pool.execute(
     `SELECT id, keyword, fault, steps, images,
@@ -531,6 +551,69 @@ function toRecord(row) {
   };
 }
 
+function buildRecordsExcel(rows) {
+  const body = rows.map((row, index) => {
+    const record = toRecord(row);
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${escapeHtml(formatExcelDate(record.date))}</td>
+        <td>${escapeHtml(record.location)}</td>
+        <td>${escapeHtml(record.fault)}</td>
+        <td>${escapeHtml(record.solution)}</td>
+        <td>${escapeHtml(formatExcelTime(record.createdAt))}</td>
+      </tr>`;
+  }).join("");
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #9fb8b2; padding: 8px; text-align: left; vertical-align: top; }
+      th { background: #dff0ec; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <table>
+      <thead>
+        <tr>
+          <th>序号</th>
+          <th>日期</th>
+          <th>地点</th>
+          <th>发生的故障</th>
+          <th>如何解决</th>
+          <th>记录时间</th>
+        </tr>
+      </thead>
+      <tbody>${body}</tbody>
+    </table>
+  </body>
+</html>`;
+}
+
+function formatExcelDate(value) {
+  return String(value || "").replaceAll("-", "/");
+}
+
+function formatExcelTime(value) {
+  if (!value) return "";
+  return new Date(value).toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function toGuide(row) {
   return {
     id: row.id,
@@ -587,6 +670,16 @@ function requireUser(request, response, next) {
   next();
 }
 
+function requireExportUser(request, response, next) {
+  const payload = readToken(request, { allowQuery: true });
+  if (!payload || payload.type !== "user") {
+    response.status(401).send("请先登录后再导出");
+    return;
+  }
+  request.user = payload;
+  next();
+}
+
 function requireAdmin(request, response, next) {
   const payload = readToken(request);
   if (!payload || payload.type !== "admin") {
@@ -596,9 +689,13 @@ function requireAdmin(request, response, next) {
   next();
 }
 
-function readToken(request) {
+function readToken(request, options = {}) {
   const header = String(request.headers.authorization || "");
-  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
+  const token = header.startsWith("Bearer ")
+    ? header.slice(7)
+    : options.allowQuery
+      ? String(request.query.token || "")
+      : "";
   return verifyToken(token);
 }
 
